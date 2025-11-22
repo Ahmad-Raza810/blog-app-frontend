@@ -15,7 +15,8 @@ import {
   DropdownMenu,
   DropdownItem,
 } from '@nextui-org/react';
-import { Plus, BookOpen, Edit3, LogOut, User, BookDashed } from 'lucide-react';
+import { Plus, Edit3, LogOut, User, BookDashed, Home, FolderTree, Tags, LogIn } from 'lucide-react';
+import Logo from './Logo';
 
 interface NavBarProps {
   isAuthenticated: boolean;
@@ -35,9 +36,9 @@ const NavBar: React.FC<NavBarProps> = ({
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
   const menuItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Categories', path: '/categories' },
-    { name: 'Tags', path: '/tags' },
+    { name: 'Home', path: '/', icon: Home },
+    { name: 'Categories', path: '/categories', icon: FolderTree },
+    { name: 'Tags', path: '/tags', icon: Tags },
   ];
 
   return (
@@ -53,31 +54,35 @@ const NavBar: React.FC<NavBarProps> = ({
 
       <NavbarContent className="sm:hidden pr-3" justify="center">
         <NavbarBrand>
-          <Link to="/" className="font-bold text-inherit">Blog Platform</Link>
+          <Logo />
         </NavbarBrand>
       </NavbarContent>
 
       <NavbarContent className="hidden sm:flex gap-4" justify="start">
         <NavbarBrand>
-          <Link to="/" className="font-bold text-inherit">Blog Platform</Link>
+          <Logo />
         </NavbarBrand>
-        {menuItems.map((item) => (
-          <NavbarItem
-            key={item.path}
-            isActive={location.pathname === item.path}
-          >
-            <Link
-              to={item.path}
-              className={`text-sm ${
-                location.pathname === item.path
-                  ? 'text-primary'
-                  : 'text-default-600'
-              }`}
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavbarItem
+              key={item.path}
+              isActive={location.pathname === item.path}
             >
-              {item.name}
-            </Link>
-          </NavbarItem>
-        ))}
+              <Link
+                to={item.path}
+                className={`text-sm flex items-center gap-1.5 ${
+                  location.pathname === item.path
+                    ? 'text-primary'
+                    : 'text-default-600'
+                }`}
+              >
+                <Icon size={16} />
+                {item.name}
+              </Link>
+            </NavbarItem>
+          );
+        })}
       </NavbarContent>
 
       <NavbarContent justify="end">
@@ -116,7 +121,13 @@ const NavBar: React.FC<NavBarProps> = ({
                     name={userProfile?.name}
                   />
                 </DropdownTrigger>
-                <DropdownMenu aria-label="User menu">                
+                <DropdownMenu aria-label="User menu">
+                  <DropdownItem
+                    key="profile"
+                    startContent={<User size={16} />}
+                  >
+                    <Link to="/profile">My Profile</Link>
+                  </DropdownItem>
                   <DropdownItem
                     key="drafts"
                     startContent={<Edit3 size={16} />}
@@ -139,7 +150,12 @@ const NavBar: React.FC<NavBarProps> = ({
         ) : (
           <>
             <NavbarItem>
-              <Button as={Link} to="/login" variant="flat">
+              <Button 
+                as={Link} 
+                to="/login" 
+                variant="flat"
+                startContent={<LogIn size={16} />}
+              >
                 Log In
               </Button>
             </NavbarItem>
@@ -148,21 +164,25 @@ const NavBar: React.FC<NavBarProps> = ({
       </NavbarContent>
 
       <NavbarMenu>
-        {menuItems.map((item) => (
-          <NavbarMenuItem key={item.path}>
-            <Link
-              to={item.path}
-              className={`w-full ${
-                location.pathname === item.path
-                  ? 'text-primary'
-                  : 'text-default-600'
-              }`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              {item.name}
-            </Link>
-          </NavbarMenuItem>
-        ))}
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavbarMenuItem key={item.path}>
+              <Link
+                to={item.path}
+                className={`w-full flex items-center gap-2 ${
+                  location.pathname === item.path
+                    ? 'text-primary'
+                    : 'text-default-600'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Icon size={18} />
+                {item.name}
+              </Link>
+            </NavbarMenuItem>
+          );
+        })}
       </NavbarMenu>
     </Navbar>
   );

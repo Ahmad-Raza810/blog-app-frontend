@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   token: string | null;
+  isLoading: boolean;
 }
 
 interface AuthProviderProps {
@@ -22,9 +23,12 @@ interface AuthProviderProps {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // Initialize isAuthenticated synchronously based on token presence
+  const storedToken = localStorage.getItem('token');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!storedToken);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(storedToken);
+  const [isLoading, setIsLoading] = useState<boolean>(!!storedToken); // Loading only if we have a token to validate
 
   // Initialize auth state from token
   useEffect(() => {
@@ -32,9 +36,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
         try {
-          // TODO: Add endpoint to fetch user profile
-          // const userProfile = await apiService.getUserProfile();
-          // setUser(userProfile);
+          // Try to fetch user profile if endpoint exists
+          try {
+            const userProfile = await apiService.getUserProfile();
+            setUser(userProfile);
+          } catch (profileError) {
+            // If profile endpoint doesn't exist yet, continue with auth
+            // User will be null but authentication is based on token
+          }
           setIsAuthenticated(true);
           setToken(storedToken);
         } catch (error) {
@@ -43,7 +52,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setIsAuthenticated(false);
           setUser(null);
           setToken(null);
+        } finally {
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
 
@@ -58,9 +71,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setToken(response.token);
       setIsAuthenticated(true);
 
-      // TODO: Add endpoint to fetch user profile after login
-      // const userProfile = await apiService.getUserProfile();
-      // setUser(userProfile);
+      // Try to fetch user profile after login if endpoint exists
+      try {
+        const userProfile = await apiService.getUserProfile();
+        setUser(userProfile);
+      } catch (profileError) {
+        // If profile endpoint doesn't exist yet, continue with login
+        // User will be null but user can still use the app
+      }
     } catch (error) {
       throw error;
     }
@@ -88,7 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     login,
     logout,
-    token
+    token,
+    isLoading
   };
 
   return (

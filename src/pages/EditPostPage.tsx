@@ -6,8 +6,8 @@ import {
   CardHeader,
   Button,
 } from '@nextui-org/react';
-import { ArrowLeft } from 'lucide-react';
-import { apiService, Post, Category, Tag, PostStatus } from '../services/apiService';
+import { ArrowLeft, FileText, AlertCircle, Edit, Plus } from 'lucide-react';
+import { apiService, Post, Category, Tag, PostStatus, extractErrorMessage, extractValidationErrors } from '../services/apiService';
 import PostForm from '../components/PostForm';
 
 const EditPostPage: React.FC = () => {
@@ -18,6 +18,7 @@ const EditPostPage: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ const EditPostPage: React.FC = () => {
 
         setError(null);
       } catch (err) {
-        setError('Failed to load necessary data. Please try again later.');
+        setError(extractErrorMessage(err, 'Failed to load necessary data. Please try again later.'));
       } finally {
         setLoading(false);
       }
@@ -58,6 +59,7 @@ const EditPostPage: React.FC = () => {
     try {
       setIsSubmitting(true);
       setError(null);
+      setValidationErrors({});
 
       if (id) {
         await apiService.updatePost(id, {
@@ -70,7 +72,26 @@ const EditPostPage: React.FC = () => {
 
       navigate('/');
     } catch (err) {
-      setError('Failed to save the post. Please try again.');
+      const backendErrors = extractValidationErrors(err);
+      if (Object.keys(backendErrors).length > 0) {
+        // Map backend field names to form field names
+        // Backend uses field names from DTO (title, content, categoryId, tagIds, status)
+        const mappedErrors: Record<string, string> = {};
+        Object.keys(backendErrors).forEach(key => {
+          // Map backend field names to form field names
+          // Backend: categoryId -> Form: category
+          if (key === 'categoryId') {
+            mappedErrors.category = backendErrors[key];
+          } else {
+            // For other fields (title, content, tagIds, status), use as-is or lowercase
+            mappedErrors[key.toLowerCase()] = backendErrors[key];
+          }
+        });
+        setValidationErrors(mappedErrors);
+      } else {
+        // If no validation errors, show general error message
+        setError(extractErrorMessage(err, 'Failed to save the post. Please try again.'));
+      }
       setIsSubmitting(false);
     }
   };
@@ -112,16 +133,20 @@ const EditPostPage: React.FC = () => {
             >
               Back
             </Button>
-            <h1 className="text-2xl font-bold">
-              {id ? 'Edit Post' : 'Create New Post'}
-            </h1>
+            <div className="flex items-center gap-2">
+              {id ? <Edit size={24} className="text-primary" /> : <Plus size={24} className="text-primary" />}
+              <h1 className="text-2xl font-bold">
+                {id ? 'Edit Post' : 'Create New Post'}
+              </h1>
+            </div>
           </div>
         </CardHeader>
 
         <CardBody>
           {error && (
-            <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-lg">
-              {error}
+            <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-lg border border-red-200 flex items-start gap-3">
+              <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -132,6 +157,7 @@ const EditPostPage: React.FC = () => {
             categories={categories}
             availableTags={tags}
             isSubmitting={isSubmitting}
+            backendErrors={validationErrors}
           />
         </CardBody>
       </Card>

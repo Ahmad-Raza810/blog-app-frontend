@@ -6,9 +6,31 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface RegisterResponse {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface AuthResponse {
   token: string;
   expiresIn: number;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Add more fields as available from backend
 }
 
 export interface Category {
@@ -52,13 +74,41 @@ export interface UpdatePostRequest extends CreatePostRequest {
 }
 
 
+// Matches backend ApiErrorResponse structure
 export interface ApiError {
   status: number;
   message: string;
-  errors?: Array<{
-    field: string;
-    message: string;
-  }>;
+  errors?: Record<string, string>; // Map<String, String> from backend - field name to error message
+}
+
+// Type guard to check if error is an ApiError
+export function isApiError(error: any): error is ApiError {
+  return error && typeof error === 'object' && 'status' in error && 'message' in error;
+}
+
+// Utility function to extract error message from various error types
+export function extractErrorMessage(error: any, fallbackMessage: string = 'An unexpected error occurred'): string {
+  if (isApiError(error)) {
+    return error.message || fallbackMessage;
+  }
+  if (error?.response?.data && isApiError(error.response.data)) {
+    return error.response.data.message || fallbackMessage;
+  }
+  if (error?.message) {
+    return error.message;
+  }
+  return fallbackMessage;
+}
+
+// Utility function to extract validation errors map
+export function extractValidationErrors(error: any): Record<string, string> {
+  if (isApiError(error)) {
+    return error.errors || {};
+  }
+  if (error?.response?.data && isApiError(error.response.data)) {
+    return error.response.data.errors || {};
+  }
+  return {};
 }
 
 export enum PostStatus {
@@ -113,38 +163,44 @@ class ApiService {
   }
 
   private handleError(error: AxiosError): ApiError {
-    if (error.response?.data) {
-      return error.response.data as ApiError;
+    if (error.response?.data && isApiError(error.response.data)) {
+      return error.response.data;
     }
+    // Fallback for network errors or unexpected response format
     return {
-      status: 500,
-      message: 'An unexpected error occurred'
+      status: error.response?.status || 500,
+      message: error.response?.data?.message || error.message || 'An unexpected error occurred'
     };
   }
 
   // Auth endpoints
- public async login(credentials: LoginRequest): Promise<AuthResponse> {
-  const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', credentials);
-  localStorage.setItem('token', response.data.token);
+  public async register(userData: RegisterRequest): Promise<RegisterResponse> {
+    const response: AxiosResponse<RegisterResponse> = await this.api.post('/auth/register', userData);
+    return response.data;
+  }
 
-  // ✅ Immediately refresh UI
-  window.location.href = '/';  // redirect to homepage
+  public async login(credentials: LoginRequest): Promise<AuthResponse> {
+    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', credentials);
+    localStorage.setItem('token', response.data.token);
 
-  return response.data;
-}
+    // ✅ Immediately refresh UI
+    window.location.href = '/';  // redirect to homepage
 
+    return response.data;
+  }
 
   public logout(): void {
     localStorage.removeItem('token');
   }
 
   public async getPosts(params: {
-  categoryId?: string;
-  tagId?: string;
-}): Promise<Post[]> {
-  const response = await this.api.get('/posts', { params });
-  return response.data.data; // ✅ inner data
-}
+    categoryId?: string;
+    tagId?: string;
+    authorId?: string; // Add authorId to filter posts by user
+  }): Promise<Post[]> {
+    const response = await this.api.get('/posts', { params });
+    return response.data.data; // ✅ inner data
+  }
 
 public async getPost(id: string): Promise<Post> {
   const response = await this.api.get(`/posts/${id}`);
@@ -207,6 +263,31 @@ public async getPost(id: string): Promise<Post> {
 
   public async deleteTag(id: string): Promise<void> {
     await this.api.delete(`/tags/${id}`);
+  }
+
+  // User endpoints
+  /**
+   * Get current user profile
+   * Endpoint: GET /user
+   * Returns: { id, name, email, createdAt, ... }
+   */
+  public async getUserProfile(): Promise<UserProfile> {
+    const response: AxiosResponse<{ data: UserProfile }> = await this.api.get('/user');
+    return response.data.data;
+  }
+
+  /**
+   * Get all posts (draft + published) by the authenticated user
+   * Endpoint: GET /posts/user
+   */
+  public async getUserPosts(): Promise<Post[]> {
+    const response: AxiosResponse<{ data: any[] }> = await this.api.get('/posts/user');
+    const posts = response.data.data || [];
+    // Normalize postStatus to status to match our interface
+    return posts.map((post: any) => ({
+      ...post,
+      status: post.postStatus || post.status, // Map postStatus to status
+    }));
   }
 }
 

@@ -44,6 +44,7 @@ interface PostFormProps {
   categories: Category[];
   availableTags: Tag[];
   isSubmitting?: boolean;
+  backendErrors?: Record<string, string>; // Validation errors from backend
 }
 
 const PostForm: React.FC<PostFormProps> = ({
@@ -53,6 +54,7 @@ const PostForm: React.FC<PostFormProps> = ({
   categories,
   availableTags,
   isSubmitting = false,
+  backendErrors = {},
 }) => {
   const [title, setTitle] = useState(initialPost?.title || '');
   const [categoryId, setCategoryId] = useState(initialPost?.category?.id || '');
@@ -61,6 +63,13 @@ const PostForm: React.FC<PostFormProps> = ({
     initialPost?.status || PostStatus.DRAFT
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Update errors when backendErrors prop changes
+  useEffect(() => {
+    if (Object.keys(backendErrors).length > 0) {
+      setErrors(prevErrors => ({ ...prevErrors, ...backendErrors }));
+    }
+  }, [backendErrors]);
 
   const editor = useEditor({
     extensions: [

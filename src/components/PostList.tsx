@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useNavigation } from 'react-router-dom';
 import { Card, CardBody, CardFooter, CardHeader, Chip, Pagination, Select, SelectItem } from '@nextui-org/react';
 import { Post } from '../services/apiService';
-import { Calendar, Clock, Tag } from 'lucide-react';
+import { Calendar, Clock, Tag, FileText, User, AlertCircle, BookOpen } from 'lucide-react';
 import DOMPurify from 'dompurify';
 
 interface PostListProps {
@@ -76,8 +76,9 @@ const PostList: React.FC<PostListProps> = ({
 
   if (error) {
     return (
-      <div className="p-4 text-red-500 bg-red-50 rounded-lg">
-        {error}
+      <div className="p-4 text-red-500 bg-red-50 rounded-lg flex items-center gap-2">
+        <AlertCircle size={20} className="flex-shrink-0" />
+        <span>{error}</span>
       </div>
     );
   }
@@ -116,53 +117,76 @@ const PostList: React.FC<PostListProps> = ({
         </div>
       ) : (
         <>
-          <div className="space-y-4">
-            {posts?.map((post) => (
-              <Card key={post.id} className="w-full p-2" isPressable={true} onPress={() => navToPostPage(post)}>
-                <CardHeader className="flex gap-3">                 
-                    <div className='flex flex-col'>
-                    <h2 className="text-xl font-bold text-left">
-                      {post.title}
-                    </h2>
-                    <p className="text-small text-default-500">
-                      by {post.author?.name}
-                    </p>                
+          {!posts || posts.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="flex flex-col items-center gap-4">
+                <div className="p-4 bg-default-100 rounded-full">
+                  <BookOpen size={48} className="text-default-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-default-700">No posts found</h3>
+                  <p className="text-sm text-default-500 mt-1">Try adjusting your filters or check back later.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <Card key={post.id} className="w-full p-2 hover:shadow-lg transition-shadow" isPressable={true} onPress={() => navToPostPage(post)}>
+                  <CardHeader className="flex gap-3">                 
+                    <div className='flex flex-col flex-1'>
+                      <div className="flex items-start gap-2">
+                        <FileText size={20} className="text-primary mt-1 flex-shrink-0" />
+                        <h2 className="text-xl font-bold text-left">
+                          {post.title}
+                        </h2>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <User size={14} className="text-default-400" />
+                        <p className="text-small text-default-500">
+                          by {post.author?.name || 'Anonymous'}
+                        </p>                
+                      </div>
                     </div>
-                </CardHeader>
+                  </CardHeader>
                 <CardBody>
                   <p className="line-clamp-3">
                     {createExcerpt(post.content)}
                   </p>
                 </CardBody>
-                <CardFooter className="flex flex-wrap gap-3">
-                  <div className="flex items-center gap-1 text-small text-default-500">
-                    <Calendar size={16} />
-                    {formatDate(post.createdAt)}
-                  </div>
-                  <div className="flex items-center gap-1 text-small text-default-500">
-                    <Clock size={16} />
-                    {post.readingTime} min read
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Chip
-                      className="bg-primary-100 text-primary"
-                    >
-                      {post.category.name}
-                    </Chip>
-                    {post.tags.map((tag) => (
+                  <CardFooter className="flex flex-wrap gap-3">
+                    <div className="flex items-center gap-1 text-small text-default-500">
+                      <Calendar size={16} className="text-default-400" />
+                      {formatDate(post.createdAt)}
+                    </div>
+                    <div className="flex items-center gap-1 text-small text-default-500">
+                      <Clock size={16} className="text-default-400" />
+                      {post.readingTime || 1} min read
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       <Chip
-                        key={tag.id}
-                        className="bg-default-100"
-                        startContent={<Tag size={14} />}
+                        className="bg-primary-100 text-primary"
+                        startContent={<BookOpen size={12} />}
+                        size="sm"
                       >
-                        {tag.name}
+                        {post.category.name}
                       </Chip>
-                    ))}
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                      {post.tags.map((tag) => (
+                        <Chip
+                          key={tag.id}
+                          className="bg-default-100"
+                          startContent={<Tag size={12} />}
+                          size="sm"
+                        >
+                          {tag.name}
+                        </Chip>
+                      ))}
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* {posts && posts.totalPages > 1 && (
             <div className="flex justify-center mt-6">

@@ -18,9 +18,12 @@ import {
   Edit,
   Trash,
   ArrowLeft,
-  Share
+  Share,
+  AlertCircle,
+  BookOpen,
+  User as UserIcon
 } from 'lucide-react';
-import { apiService, Post } from '../services/apiService';
+import { apiService, Post, extractErrorMessage } from '../services/apiService';
 
 interface PostPageProps {
   isAuthenticated?: boolean;
@@ -47,7 +50,7 @@ const PostPage: React.FC<PostPageProps> = ({
         setPost(fetchedPost);
         setError(null);
       } catch (err) {
-        setError('Failed to load the post. Please try again later.');
+        setError(extractErrorMessage(err, 'Failed to load the post. Please try again later.'));
       } finally {
         setLoading(false);
       }
@@ -66,7 +69,7 @@ const PostPage: React.FC<PostPageProps> = ({
       await apiService.deletePost(post.id);
       navigate('/');
     } catch (err) {
-      setError('Failed to delete the post. Please try again later.');
+      setError(extractErrorMessage(err, 'Failed to delete the post. Please try again later.'));
       setIsDeleting(false);
     }
   };
@@ -122,15 +125,20 @@ const PostPage: React.FC<PostPageProps> = ({
     return (
       <div className="max-w-4xl mx-auto px-4">
         <Card>
-          <CardBody>
-            <p className="text-danger">{error || 'Post not found'}</p>
+          <CardBody className="flex flex-col items-center gap-4 py-12">
+            <div className="p-4 bg-danger-100 rounded-full">
+              <AlertCircle size={48} className="text-danger" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-default-700">{error || 'Post not found'}</h3>
+              <p className="text-sm text-default-500 mt-1">The post you're looking for doesn't exist or has been removed.</p>
+            </div>
             <Button
               as={Link}
               to="/"
               color="primary"
               variant="flat"
               startContent={<ArrowLeft size={16} />}
-              className="mt-4"
             >
               Back to Home
             </Button>
@@ -144,7 +152,7 @@ const PostPage: React.FC<PostPageProps> = ({
     <div className="max-w-4xl mx-auto px-4">
       <Card className="w-full">
         <CardHeader className="flex flex-col items-start gap-3">
-          <div className="flex justify-between w-full">
+          <div className="flex justify-between w-full items-start">
             <Button
               as={Link}
               to="/"
@@ -192,11 +200,12 @@ const PostPage: React.FC<PostPageProps> = ({
           <h1 className="text-3xl font-bold">{post.title}</h1>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
+              <UserIcon size={16} className="text-default-400" />
               <Avatar
                 name={post.author?.name}
                 size="sm"
               />
-              <span className="text-default-600">{post.author?.name}</span>
+              <span className="text-default-600">{post.author?.name || 'Anonymous'}</span>
             </div>
             <div className="flex items-center gap-2 text-default-500">
               <Calendar size={16} />
@@ -220,19 +229,27 @@ const PostPage: React.FC<PostPageProps> = ({
 
         <CardFooter className="flex flex-col items-start gap-4">
           <Divider />
-          <div className="flex flex-wrap gap-2">
-            <Chip color="primary" variant="flat">
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm text-default-500 mr-2">Filed under:</span>
+            <Chip color="primary" variant="flat" startContent={<BookOpen size={14} />}>
               {post.category.name}
             </Chip>
-            {post.tags.map((tag) => (
-              <Chip
-                key={tag.id}
-                variant="flat"
-                startContent={<Tag size={14} />}
-              >
-                {tag.name}
-              </Chip>
-            ))}
+            {post.tags.length > 0 && (
+              <>
+                <span className="text-sm text-default-500 mx-1">•</span>
+                <span className="text-sm text-default-500">Tags:</span>
+                {post.tags.map((tag) => (
+                  <Chip
+                    key={tag.id}
+                    variant="flat"
+                    startContent={<Tag size={14} />}
+                    size="sm"
+                  >
+                    {tag.name}
+                  </Chip>
+                ))}
+              </>
+            )}
           </div>
         </CardFooter>
       </Card>

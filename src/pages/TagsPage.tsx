@@ -20,8 +20,8 @@ import {
   Chip,
   Tooltip,
 } from "@nextui-org/react";
-import { Plus, Trash2, X } from "lucide-react";
-import { apiService, Tag } from "../services/apiService";
+import { Plus, Trash2, X, Tags, AlertCircle, FileText, Tag as TagIcon } from "lucide-react";
+import { apiService, Tag, extractErrorMessage, extractValidationErrors } from "../services/apiService";
 
 interface TagsPageProps {
   isAuthenticated: boolean;
@@ -34,6 +34,7 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
   const [newTags, setNewTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null); // For validation errors in modal
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
@@ -47,7 +48,7 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
       setTags(response);
       setError(null);
     } catch (err) {
-      setError("Failed to load tags. Please try again later.");
+      setError(extractErrorMessage(err, "Failed to load tags. Please try again later."));
     } finally {
       setLoading(false);
     }
@@ -60,11 +61,25 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
 
     try {
       setIsSubmitting(true);
+      setValidationError(null); // Clear previous validation errors
+      setError(null); // Clear general error
+      
       await apiService.createTags(newTags);
       await fetchTags();
       handleModalClose();
     } catch (err) {
-      setError("Failed to create tags. Please try again.");
+      const validationErrors = extractValidationErrors(err);
+      
+      // Check if there are field-specific validation errors
+      if (Object.keys(validationErrors).length > 0) {
+        // Display validation errors - could be for "names", "names[0]", etc.
+        const errorMessages = Object.values(validationErrors);
+        // Show the first validation error or combine them
+        setValidationError(errorMessages[0] || 'Validation error occurred');
+      } else {
+        // If no validation errors, show general error message
+        setError(extractErrorMessage(err, "Failed to create tags. Please try again."));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -82,7 +97,7 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
       await apiService.deleteTag(tag.id);
       await fetchTags();
     } catch (err) {
-      setError("Failed to delete tag. Please try again.");
+      setError(extractErrorMessage(err, "Failed to delete tag. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -91,6 +106,8 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
   const handleModalClose = () => {
     setNewTags([]);
     setTagInput("");
+    setValidationError(null); // Clear validation errors when closing modal
+    setError(null); // Clear general error
     onClose();
   };
 
@@ -115,7 +132,10 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
     <div className="max-w-4xl mx-auto px-4">
       <Card>
         <CardHeader className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Tags</h1>
+          <div className="flex items-center gap-2">
+            <Tags className="text-primary" size={24} />
+            <h1 className="text-2xl font-bold">Tags</h1>
+          </div>
           {isAuthenticated && (
             <Button
               color="primary"
@@ -129,8 +149,9 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
 
         <CardBody>
           {error && (
-            <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-lg">
-              {error}
+            <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-lg border border-red-200 flex items-start gap-3">
+              <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -152,8 +173,18 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
             >
               {tags.map((tag) => (
                 <TableRow key={tag.id}>
-                  <TableCell>{tag.name}</TableCell>
-                  <TableCell>{tag.postCount || 0}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <TagIcon size={16} className="text-primary" />
+                      {tag.name}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <FileText size={14} className="text-default-400" />
+                      {tag.postCount || 0}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {isAuthenticated ? (
                       <Tooltip
@@ -189,15 +220,24 @@ const TagsPage: React.FC<TagsPageProps> = ({ isAuthenticated }) => {
 
       <Modal isOpen={isOpen} onClose={handleModalClose}>
         <ModalContent>
-          <ModalHeader>Add Tags</ModalHeader>
+          <ModalHeader className="flex items-center gap-2">
+            <Tags size={20} />
+            Add Tags
+          </ModalHeader>
           <ModalBody>
             <div className="space-y-4">
               <Input
                 label="Enter tags"
                 placeholder="Type and press Enter or comma to add tags"
                 value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
+                onChange={(e) => {
+                  setTagInput(e.target.value);
+                  setValidationError(null); // Clear error when user types
+                }}
                 onKeyDown={handleTagInputKeyDown}
+                isInvalid={!!validationError}
+                errorMessage={validationError || undefined}
+                startContent={<TagIcon size={16} className="text-default-400" />}
               />
               <div className="flex flex-wrap gap-2">
                 {newTags.map((tag) => (

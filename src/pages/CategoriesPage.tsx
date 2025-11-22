@@ -19,8 +19,8 @@ import {
   ModalFooter,
   Tooltip,
 } from "@nextui-org/react";
-import { Plus, Edit2, Trash2 } from "lucide-react";
-import { apiService, Category } from "../services/apiService";
+import { Plus, Edit2, Trash2, FolderTree, BookOpen, AlertCircle, FileText } from "lucide-react";
+import { apiService, Category, extractErrorMessage, extractValidationErrors } from "../services/apiService";
 
 interface CategoriesPageProps {
   isAuthenticated: boolean;
@@ -33,6 +33,7 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null); // For validation errors in modal
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
@@ -46,7 +47,7 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
       setCategories(response);
       setError(null);
     } catch (err) {
-      setError("Failed to load categories. Please try again later.");
+      setError(extractErrorMessage(err, "Failed to load categories. Please try again later."));
     } finally {
       setLoading(false);
     }
@@ -59,6 +60,9 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
 
     try {
       setIsSubmitting(true);
+      setFieldError(null); // Clear previous field errors
+      setError(null); // Clear general error
+      
       if (editingCategory) {
         await apiService.updateCategory(
           editingCategory.id,
@@ -70,11 +74,28 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
       await fetchCategories();
       handleModalClose();
     } catch (err) {
-      setError(
-        `Failed to ${
-          editingCategory ? "update" : "create"
-        } category. Please try again.`
-      );
+      const validationErrors = extractValidationErrors(err);
+      
+      // Check if there are field-specific validation errors
+      if (Object.keys(validationErrors).length > 0) {
+        // Display the specific field error (e.g., "name" field error)
+        const nameError = validationErrors.name;
+        if (nameError) {
+          setFieldError(nameError);
+        } else {
+          // If there are other field errors, show them
+          const firstError = Object.values(validationErrors)[0];
+          setFieldError(firstError || 'Validation error occurred');
+        }
+      } else {
+        // If no validation errors, show general error message
+        setError(
+          extractErrorMessage(
+            err,
+            `Failed to ${editingCategory ? "update" : "create"} category. Please try again.`
+          )
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -94,7 +115,7 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
       await apiService.deleteCategory(category.id);
       await fetchCategories();
     } catch (err) {
-      setError("Failed to delete category. Please try again.");
+      setError(extractErrorMessage(err, "Failed to delete category. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -103,6 +124,8 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
   const handleModalClose = () => {
     setEditingCategory(null);
     setNewCategoryName("");
+    setFieldError(null); // Clear field errors when closing modal
+    setError(null); // Clear general error
     onClose();
   };
 
@@ -122,7 +145,10 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
     <div className="max-w-4xl mx-auto px-4">
       <Card>
         <CardHeader className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Categories</h1>
+          <div className="flex items-center gap-2">
+            <FolderTree className="text-primary" size={24} />
+            <h1 className="text-2xl font-bold">Categories</h1>
+          </div>
           {isAuthenticated && (
             <Button
               color="primary"
@@ -136,8 +162,9 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
 
         <CardBody>
           {error && (
-            <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-lg">
-              {error}
+            <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-lg border border-red-200 flex items-start gap-3">
+              <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -159,8 +186,18 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
             >
               {categories.map((category) => (
                 <TableRow key={category.id}>
-                  <TableCell>{category.name}</TableCell>
-                  <TableCell>{category.postCount || 0}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <BookOpen size={16} className="text-primary" />
+                      {category.name}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <FileText size={14} className="text-default-400" />
+                      {category.postCount || 0}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {isAuthenticated ? (
                       <div className="flex gap-2">
@@ -208,15 +245,23 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ isAuthenticated }) => {
 
       <Modal isOpen={isOpen} onClose={handleModalClose}>
         <ModalContent>
-          <ModalHeader>
+          <ModalHeader className="flex items-center gap-2">
+            <FolderTree size={20} />
             {editingCategory ? "Edit Category" : "Add Category"}
           </ModalHeader>
           <ModalBody>
             <Input
               label="Category Name"
+              placeholder="Enter category name"
               value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
+              onChange={(e) => {
+                setNewCategoryName(e.target.value);
+                setFieldError(null); // Clear error when user types
+              }}
               isRequired
+              isInvalid={!!fieldError}
+              errorMessage={fieldError || undefined}
+              startContent={<BookOpen size={16} className="text-default-400" />}
             />
           </ModalBody>
           <ModalFooter>
