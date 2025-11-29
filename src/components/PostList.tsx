@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useNavigate, useNavigation } from 'react-router-dom';
 import { Card, CardBody, CardFooter, CardHeader, Chip, Pagination, Select, SelectItem } from '@nextui-org/react';
+import { motion } from 'framer-motion';
 import { Post } from '../services/apiService';
 import { Calendar, Clock, Tag, FileText, User, AlertCircle, BookOpen } from 'lucide-react';
 import DOMPurify from 'dompurify';
+import { staggerContainer, staggerItem } from '../utils/animation-utils';
 
 interface PostListProps {
   posts: Post[] | null;
@@ -24,9 +26,9 @@ const PostList: React.FC<PostListProps> = ({
   onPageChange,
   onSortChange,
 }) => {
- 
+
   const navigate = useNavigate();
- 
+
   const sortOptions = [
     { value: "createdAt,desc", label: "Newest First" },
     { value: "createdAt,asc", label: "Oldest First" },
@@ -57,20 +59,20 @@ const PostList: React.FC<PostListProps> = ({
       ALLOWED_TAGS: ['p', 'strong', 'em', 'br'],
       ALLOWED_ATTR: []
     });
-    
+
     // Create a temporary div to parse the HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = sanitizedContent;
-    
+
     // Get the text content and limit it
     let textContent = tempDiv.textContent || tempDiv.innerText || '';
     textContent = textContent.trim();
-    
+
     // Limit to roughly 200 characters, ending at the last complete word
     if (textContent.length > 200) {
       textContent = textContent.substring(0, 200).split(' ').slice(0, -1).join(' ') + '...';
     }
-    
+
     return textContent;
   };
 
@@ -107,10 +109,14 @@ const PostList: React.FC<PostListProps> = ({
       {loading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, index) => (
-            <Card key={index} className="w-full animate-pulse">
+            <Card key={index} className="w-full">
               <CardBody>
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="space-y-3">
+                  <div className="h-6 bg-default-200 rounded w-3/4 shimmer"></div>
+                  <div className="h-4 bg-default-200 rounded w-1/2 shimmer"></div>
+                  <div className="h-4 bg-default-200 rounded w-full shimmer"></div>
+                  <div className="h-4 bg-default-200 rounded w-5/6 shimmer"></div>
+                </div>
               </CardBody>
             </Card>
           ))}
@@ -130,62 +136,78 @@ const PostList: React.FC<PostListProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <motion.div
+              className="space-y-4"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
               {posts.map((post) => (
-                <Card key={post.id} className="w-full p-2 hover:shadow-lg transition-shadow" isPressable={true} onPress={() => navToPostPage(post)}>
-                  <CardHeader className="flex gap-3">                 
-                    <div className='flex flex-col flex-1'>
-                      <div className="flex items-start gap-2">
-                        <FileText size={20} className="text-primary mt-1 flex-shrink-0" />
-                        <h2 className="text-xl font-bold text-left">
-                          {post.title}
-                        </h2>
+                <motion.div
+                  key={post.id}
+                  variants={staggerItem}
+                  whileHover={{ y: -5, boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <Card
+                    className="w-full p-2 cursor-pointer transition-shadow"
+                    isPressable={true}
+                    onPress={() => navToPostPage(post)}
+                  >
+                    <CardHeader className="flex gap-3">
+                      <div className='flex flex-col flex-1'>
+                        <div className="flex items-start gap-2">
+                          <FileText size={20} className="text-accent-1 mt-1 flex-shrink-0" />
+                          <h2 className="text-xl font-bold text-left font-display">
+                            {post.title}
+                          </h2>
+                        </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          <User size={14} className="text-default-400" />
+                          <p className="text-small text-default-500">
+                            by {post.author?.name || 'Anonymous'}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <User size={14} className="text-default-400" />
-                        <p className="text-small text-default-500">
-                          by {post.author?.name || 'Anonymous'}
-                        </p>                
+                    </CardHeader>
+                    <CardBody>
+                      <p className="line-clamp-3">
+                        {createExcerpt(post.content)}
+                      </p>
+                    </CardBody>
+                    <CardFooter className="flex flex-wrap gap-3">
+                      <div className="flex items-center gap-1 text-small text-default-500">
+                        <Calendar size={16} className="text-default-400" />
+                        {formatDate(post.createdAt)}
                       </div>
-                    </div>
-                  </CardHeader>
-                <CardBody>
-                  <p className="line-clamp-3">
-                    {createExcerpt(post.content)}
-                  </p>
-                </CardBody>
-                  <CardFooter className="flex flex-wrap gap-3">
-                    <div className="flex items-center gap-1 text-small text-default-500">
-                      <Calendar size={16} className="text-default-400" />
-                      {formatDate(post.createdAt)}
-                    </div>
-                    <div className="flex items-center gap-1 text-small text-default-500">
-                      <Clock size={16} className="text-default-400" />
-                      {post.readingTime || 1} min read
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Chip
-                        className="bg-primary-100 text-primary"
-                        startContent={<BookOpen size={12} />}
-                        size="sm"
-                      >
-                        {post.category.name}
-                      </Chip>
-                      {post.tags.map((tag) => (
+                      <div className="flex items-center gap-1 text-small text-default-500">
+                        <Clock size={16} className="text-default-400" />
+                        {post.readingTime || 1} min read
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         <Chip
-                          key={tag.id}
-                          className="bg-default-100"
-                          startContent={<Tag size={12} />}
+                          className="bg-gradient-primary text-white"
+                          startContent={<BookOpen size={12} />}
                           size="sm"
                         >
-                          {tag.name}
+                          {post.category.name}
                         </Chip>
-                      ))}
-                    </div>
-                  </CardFooter>
-                </Card>
+                        {post.tags.map((tag) => (
+                          <Chip
+                            key={tag.id}
+                            className="bg-default-100"
+                            startContent={<Tag size={12} />}
+                            size="sm"
+                          >
+                            {tag.name}
+                          </Chip>
+                        ))}
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
 
           {/* {posts && posts.totalPages > 1 && (
