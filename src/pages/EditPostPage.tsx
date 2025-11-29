@@ -62,7 +62,7 @@ const EditPostPage: React.FC = () => {
       setValidationErrors({});
 
       if (id) {
-        await apiService.updatePost(id, {
+        await apiService.updatePost({
           ...postData,
           id
         });

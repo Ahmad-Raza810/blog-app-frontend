@@ -167,9 +167,10 @@ class ApiService {
       return error.response.data;
     }
     // Fallback for network errors or unexpected response format
+    const responseData = error.response?.data as any;
     return {
       status: error.response?.status || 500,
-      message: error.response?.data?.message || error.message || 'An unexpected error occurred'
+      message: responseData?.message || error.message || 'An unexpected error occurred'
     };
   }
 
@@ -202,19 +203,19 @@ class ApiService {
     return response.data.data; // ✅ inner data
   }
 
-public async getPost(id: string): Promise<Post> {
-  const response = await this.api.get(`/posts/${id}`);
-  return response.data.data; // ✅ inner data
-}
+  public async getPost(id: string): Promise<Post> {
+    const response = await this.api.get(`/posts/${id}`);
+    return response.data.data; // ✅ inner data
+  }
 
   public async createPost(post: CreatePostRequest): Promise<Post> {
     const response: AxiosResponse<Post> = await this.api.post('/posts', post);
     return response.data;
   }
 
-  public async updatePost(id: string, post: UpdatePostRequest): Promise<Post> {
-    const response: AxiosResponse<Post> = await this.api.put(`/posts/${id}`, post);
-    return response.data;
+  public async updatePost(post: UpdatePostRequest): Promise<Post> {
+    const response: AxiosResponse<{ message: string; data: Post; status: number; success: boolean; dateTime: string }> = await this.api.put('/posts', post);
+    return response.data.data; // Extract post from ApiResponse wrapper
   }
 
   public async deletePost(id: string): Promise<void> {
@@ -223,16 +224,16 @@ public async getPost(id: string): Promise<Post> {
 
   public async getDrafts(params: { page?: number; size?: number; sort?: string; }): Promise<Post[]> {
     const response: AxiosResponse<{ message: string; data: Post[]; status: number; success: boolean; dateTime: string }> =
-        await this.api.get('/posts/drafts', { params });
+      await this.api.get('/posts/drafts', { params });
     return response.data.data; // <-- only the posts array
-}
+  }
 
 
   //category
- public async getCategories(): Promise<Category[]> {
+  public async getCategories(): Promise<Category[]> {
     const response: AxiosResponse<{ data: Category[] }> = await this.api.get('/categories');
     return response.data.data; // extract the array from "data"
-}
+  }
 
 
   public async createCategory(name: string): Promise<Category> {
@@ -250,11 +251,11 @@ public async getPost(id: string): Promise<Post> {
   }
 
   // Tags endpoints
- public async getTags(): Promise<Tag[]> {
+  public async getTags(): Promise<Tag[]> {
     const response: AxiosResponse<{ data: Tag[] }> = await this.api.get('/tags');
     return response.data.data; // extract the array from "data"
-}
- 
+  }
+
 
   public async createTags(names: string[]): Promise<Tag[]> {
     const response: AxiosResponse<Tag[]> = await this.api.post('/tags', { names });

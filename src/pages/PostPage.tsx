@@ -11,7 +11,7 @@ import {
   Divider,
   Avatar,
 } from '@nextui-org/react';
-import { 
+import {
   Calendar,
   Clock,
   Tag,
@@ -24,18 +24,12 @@ import {
   User as UserIcon
 } from 'lucide-react';
 import { apiService, Post, extractErrorMessage } from '../services/apiService';
+import { useAuth } from '../components/AuthContext';
 
-interface PostPageProps {
-  isAuthenticated?: boolean;
-  currentUserId?: string;
-}
-
-const PostPage: React.FC<PostPageProps> = ({ 
-  isAuthenticated,
-  currentUserId
-}) => {
+const PostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [post, setPost] = useState<Post | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +157,7 @@ const PostPage: React.FC<PostPageProps> = ({
               Back to Posts
             </Button>
             <div className="flex gap-2">
-              {isAuthenticated && (
+              {isAuthenticated && user && post.author && user.id === post.author.id && (
                 <>
                   <Button
                     as={Link}
@@ -221,7 +215,7 @@ const PostPage: React.FC<PostPageProps> = ({
         <Divider />
 
         <CardBody>
-          <div 
+          <div
             className="prose max-w-none"
             dangerouslySetInnerHTML={createSanitizedHTML(post.content)}
           />
